@@ -1,0 +1,684 @@
+openapi: 3.0.3
+info:
+  title: School Management System API
+  description: Complete API documentation for the school management system
+  version: 1.0.0
+  contact:
+    name: School Management API Support
+    email: support@schoolmanagement.com
+
+servers:
+  - url: https://api.schoolmanagement.com/v1
+    description: Production server
+  - url: http://localhost:3000/api/v1
+    description: Development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "user_123"
+        email:
+          type: string
+          format: email
+          example: "john.doe@school.com"
+        name:
+          type: string
+          example: "John Doe"
+        role:
+          type: string
+          enum: [admin, teacher, student]
+          example: "student"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Student:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            studentId:
+              type: string
+              example: "STU001"
+            grade:
+              type: string
+              example: "10th Grade"
+            subjects:
+              type: array
+              items:
+                type: string
+              example: ["Math", "Science", "English"]
+
+    Teacher:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            teacherId:
+              type: string
+              example: "TCH001"
+            subjects:
+              type: array
+              items:
+                type: string
+              example: ["Mathematics", "Physics"]
+            assignedStudents:
+              type: array
+              items:
+                type: string
+              example: ["STU001", "STU002"]
+
+    Mark:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "mark_123"
+        studentId:
+          type: string
+          example: "STU001"
+        subject:
+          type: string
+          example: "Mathematics"
+        marks:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 85
+        totalMarks:
+          type: number
+          example: 100
+        examType:
+          type: string
+          enum: [quiz, midterm, final, assignment]
+          example: "midterm"
+        date:
+          type: string
+          format: date
+        teacherId:
+          type: string
+          example: "TCH001"
+
+    Attendance:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "att_123"
+        studentId:
+          type: string
+          example: "STU001"
+        subject:
+          type: string
+          example: "Mathematics"
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [present, absent, late]
+          example: "present"
+        teacherId:
+          type: string
+          example: "TCH001"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "john.doe@school.com"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/User'
+        expiresIn:
+          type: string
+          example: "24h"
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          example: "jane.doe@school.com"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+        name:
+          type: string
+          example: "Jane Doe"
+        grade:
+          type: string
+          example: "10th Grade"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid credentials"
+        message:
+          type: string
+          example: "The provided email or password is incorrect"
+        code:
+          type: integer
+          example: 401
+
+paths:
+  /auth/login:
+    post:
+      summary: User login
+      description: Authenticate user and return JWT token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/register:
+    post:
+      summary: Student registration
+      description: Register a new student account
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Registration failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      summary: Get current user profile
+      description: Retrieve the authenticated user's profile information
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/teachers:
+    get:
+      summary: Get all teachers (Admin only)
+      description: Retrieve list of all teachers
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Teachers list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  teachers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Teacher'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  totalPages:
+                    type: integer
+
+    post:
+      summary: Add new teacher (Admin only)
+      description: Create a new teacher account
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+                - subjects
+              properties:
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                subjects:
+                  type: array
+                  items:
+                    type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '201':
+          description: Teacher created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Teacher'
+
+  /admin/students:
+    get:
+      summary: Get all students (Admin only)
+      description: Retrieve list of all students
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: grade
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Students list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  students:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Student'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  totalPages:
+                    type: integer
+
+  /teacher/students:
+    get:
+      summary: Get assigned students (Teacher only)
+      description: Retrieve list of students assigned to the teacher
+      tags:
+        - Teacher
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: subject
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Assigned students retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Student'
+
+  /teacher/marks:
+    get:
+      summary: Get marks for assigned students (Teacher only)
+      description: Retrieve marks for students in teacher's subjects
+      tags:
+        - Teacher
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: studentId
+          in: query
+          schema:
+            type: string
+        - name: subject
+          in: query
+          schema:
+            type: string
+        - name: examType
+          in: query
+          schema:
+            type: string
+            enum: [quiz, midterm, final, assignment]
+      responses:
+        '200':
+          description: Marks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Mark'
+
+    post:
+      summary: Add marks (Teacher only)
+      description: Add marks for a student in a subject
+      tags:
+        - Teacher
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentId
+                - subject
+                - marks
+                - totalMarks
+                - examType
+              properties:
+                studentId:
+                  type: string
+                subject:
+                  type: string
+                marks:
+                  type: number
+                totalMarks:
+                  type: number
+                examType:
+                  type: string
+                  enum: [quiz, midterm, final, assignment]
+                date:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Marks added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mark'
+
+  /teacher/attendance:
+    get:
+      summary: Get attendance for assigned students (Teacher only)
+      description: Retrieve attendance records for students in teacher's subjects
+      tags:
+        - Teacher
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: studentId
+          in: query
+          schema:
+            type: string
+        - name: subject
+          in: query
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Attendance records retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attendance'
+
+    post:
+      summary: Add attendance (Teacher only)
+      description: Mark attendance for a student in a subject
+      tags:
+        - Teacher
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentId
+                - subject
+                - date
+                - status
+              properties:
+                studentId:
+                  type: string
+                subject:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                status:
+                  type: string
+                  enum: [present, absent, late]
+      responses:
+        '201':
+          description: Attendance marked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attendance'
+
+  /student/marks:
+    get:
+      summary: Get own marks (Student only)
+      description: Retrieve marks for the authenticated student
+      tags:
+        - Student
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: subject
+          in: query
+          schema:
+            type: string
+        - name: examType
+          in: query
+          schema:
+            type: string
+            enum: [quiz, midterm, final, assignment]
+      responses:
+        '200':
+          description: Student marks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Mark'
+
+  /student/attendance:
+    get:
+      summary: Get own attendance (Student only)
+      description: Retrieve attendance records for the authenticated student
+      tags:
+        - Student
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: subject
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Student attendance retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attendance'
+
+  /student/performance:
+    get:
+      summary: Get performance suggestions (Student only)
+      description: Get AI-generated performance suggestions based on marks
+      tags:
+        - Student
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Performance suggestions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overall:
+                    type: object
+                    properties:
+                      grade:
+                        type: string
+                        example: "B+"
+                      percentage:
+                        type: number
+                        example: 85.5
+                      suggestions:
+                        type: array
+                        items:
+                          type: string
+                        example: ["Focus more on Mathematics", "Excellent performance in Science"]
+                  subjects:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        average:
+                          type: number
+                        grade:
+                          type: string
+                        suggestions:
+                          type: array
+                          items:
+                            type: string
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Admin
+    description: Admin-only operations
+  - name: Teacher
+    description: Teacher-specific operations
+  - name: Student
+    description: Student-specific operations
